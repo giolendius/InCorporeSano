@@ -308,7 +308,7 @@ html.is-slide2 .screen2-layer {
   overflow: hidden;
   padding: 0 28px clamp(14px, 2.5svh, 24px) 24px;
 }
-/* Blocco traslabile: sulle finestne troppo basse il carosello lo porta al fondo della slide. */
+/* Blocco traslabile: sulle finestre troppo basse il carosello lo porta al fondo della slide. */
 .summary__inner {
   max-width: 460px;
   margin: 0 auto;
