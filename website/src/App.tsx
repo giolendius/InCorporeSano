@@ -4,7 +4,6 @@ import { LangProvider } from './i18n/LangContext'
 import { Dive } from './components/Dive'
 import { SystemsSection, type SystemsHandle } from './components/systems/SystemsSection'
 import { FinalCta } from './components/FinalCta'
-import { ProgressBar } from './components/ProgressBar'
 import { LangSwitch } from './components/LangSwitch'
 
 export default function App() {
@@ -24,7 +23,6 @@ export default function App() {
         <Dive onSelectSystem={(i, icon) => systems.current?.enterFrom(i, icon)} />
         <SystemsSection ref={systems} />
         <FinalCta />
-        <ProgressBar />
       </main>
       <LangSwitch />
     </LangProvider>

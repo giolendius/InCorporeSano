@@ -10,8 +10,11 @@ interface Props {
 }
 
 /**
- * Screen 1 → 2, "tuffo nel vaso": la stage è pinnata per 100vh e la timeline è legata allo scroll (scrub).
- * Se l'utente si ferma, l'effetto si ferma.
+ * Slide 1 → Slide 2, "tuffo nel vaso": la stage è pinnata per 100vh e la timeline è legata allo
+ * scroll (scrub). Se l'utente si ferma, l'effetto si ferma.
+ *
+ * La Slide 2 è un pannello a schermo pieno dentro la stage (`.screen2-layer`), gemello dei pannelli
+ * dei sistemi: il tuffo ci atterra sopra in dissolvenza e il blocco del carosello la tiene lì intera.
  */
 export function Dive({ onSelectSystem }: Props) {
   const root = useRef<HTMLDivElement>(null)
@@ -72,7 +75,8 @@ export function Dive({ onSelectSystem }: Props) {
             { '--vig-w': '34%', '--vig-h': '26%', duration: 0.6 },
             0,
           )
-          // Arrivo nello screen 2: crossfade del fondo, l'elica si disegna da sinistra, poi kicker e headline.
+          // Atterraggio sulla Slide 2: crossfade del fondo, l'elica si disegna da sinistra,
+          // poi kicker, headline e card. Tutto dentro il tuffo: a fine pin la slide è completa.
           .fromTo(q('.screen2-layer'), { opacity: 0 }, { opacity: 1, duration: 0.2 }, 0.6)
           .fromTo(q('.dna'), { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.3 }, 0.7)
           .fromTo(
@@ -81,23 +85,12 @@ export function Dive({ onSelectSystem }: Props) {
             { opacity: 1, y: 0, duration: 0.07, stagger: 0.04 },
             0.85,
           )
-
-        // Le card arrivano dopo kicker e headline: quando sono in vista *e* il tuffo è quasi finito.
-        const cards = q('.reveal-card')
-        gsap.set(cards, { opacity: 0, y: 16 })
-        let cardsShown = false
-        const cardsInView = () => cards[0].getBoundingClientRect().top < window.innerHeight * 0.94
-        const showCards = () => {
-          if (cardsShown || !cardsInView()) return
-          cardsShown = true
-          gsap.to(cards, { opacity: 1, y: 0, duration: 0.5, stagger: 0.12, ease: 'power2.out' })
-        }
-        tl.call(showCards, undefined, 0.92)
-        ScrollTrigger.create({
-          trigger: cards[0],
-          start: 'top 94%',
-          onEnter: () => (trigger.current?.progress ?? 1) >= 0.92 && showCards(),
-        })
+          .fromTo(
+            q('.reveal-card'),
+            { opacity: 0, y: 16 },
+            { opacity: 1, y: 0, duration: 0.06, stagger: 0.035 },
+            0.89,
+          )
 
         return () => {
           trigger.current = null
@@ -107,11 +100,6 @@ export function Dive({ onSelectSystem }: Props) {
       // Reduced motion: stessa struttura, ma crossfade da 200ms invece dello scrub.
       mm.add(REDUCED, () => {
         gsap.set(q('.screen2-layer, .reveal-line, .reveal-card'), { opacity: 0 })
-        ScrollTrigger.batch(q('.reveal-card'), {
-          start: 'top 94%',
-          once: true,
-          onEnter: (els) => gsap.to(els, { opacity: 1, duration: 0.2 }),
-        })
         let inScreen2 = false
         trigger.current = ScrollTrigger.create({
           trigger: stage.current,
@@ -123,7 +111,7 @@ export function Dive({ onSelectSystem }: Props) {
             const on = self.progress > 0.5
             if (on === inScreen2) return
             inScreen2 = on
-            gsap.to(q('.screen2-layer, .reveal-line'), { opacity: on ? 1 : 0, duration: 0.2 })
+            gsap.to(q('.screen2-layer, .reveal-line, .reveal-card'), { opacity: on ? 1 : 0, duration: 0.2 })
             gsap.to(q('.hero-logo, .hero-ecg, .hero-copy'), { opacity: on ? 0 : 1, duration: 0.2 })
           },
         })
@@ -148,16 +136,22 @@ export function Dive({ onSelectSystem }: Props) {
     <div id="dive" ref={root}>
       <div ref={stage} className="dive-stage">
         <Hero onDiscover={discover} />
-        <div className="layer screen2-layer" style={{ opacity: 0 }} aria-hidden="true">
+        <div className="layer screen2-layer" style={{ opacity: 0 }}>
           <div className="screen2-bg" />
-          <span className="rbc" style={{ right: -18, top: 58, width: 46, height: 42, '--blur': '5px', '--op': 0.7 } as CSSProperties} />
-          <span className="rbc" style={{ left: '62%', top: 292, width: 26, height: 24, '--blur': '2.5px', '--op': 0.75 } as CSSProperties} />
+          <span
+            className="rbc"
+            style={{ right: -18, top: '7%', width: 46, height: 42, '--blur': '5px', '--op': 0.7 } as CSSProperties}
+          />
+          <span
+            className="rbc"
+            style={{ left: '62%', top: '35%', width: 26, height: 24, '--blur': '2.5px', '--op': 0.75 } as CSSProperties}
+          />
           <div className="dna">
             <DnaHelix />
           </div>
+          <Summary onSelectSystem={onSelectSystem} />
         </div>
       </div>
-      <Summary onSelectSystem={onSelectSystem} />
     </div>
   )
 }

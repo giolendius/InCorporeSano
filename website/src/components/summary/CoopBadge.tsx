@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { SYSTEM_COLORS, type SystemId } from '../../data/systems'
 
-/** Nodi a rombo (in px nel badge 72×72), nell'ordine in cui li percorre l'impulso. */
+/** Nodi a rombo. Coordinate nel box 72×72 del disegno, usate anche in percentuale. */
 const NODES: { id: SystemId; x: number; y: number }[] = [
   { id: 'circ', x: 36, y: 12 },
   { id: 'dig', x: 60, y: 36 },
@@ -12,6 +12,8 @@ const NODES: { id: SystemId; x: number; y: number }[] = [
 const LINES = NODES.flatMap((a, i) => NODES.slice(i + 1).map((b) => ({ a, b })))
 const LOOP = 'M36 12 L60 36 L36 60 L12 36 Z'
 const PULSE_S = 2.4
+/** Il badge si rimpicciolisce sugli schermi bassi: i nodi vanno in percentuale per seguirlo. */
+const pct = (v: number) => `${(v / 72) * 100}%`
 
 /** Badge "Cooperazione": i 4 sistemi collegati tra loro attorno al corpo, che batte al centro. */
 export function CoopBadge() {
@@ -30,15 +32,18 @@ export function CoopBadge() {
           className="coop__node"
           style={
             {
-              left: n.x,
-              top: n.y,
+              left: pct(n.x),
+              top: pct(n.y),
               '--c': SYSTEM_COLORS[n.id],
               '--flash-delay': `${(k * PULSE_S) / NODES.length}s`,
             } as CSSProperties
           }
         />
       ))}
-      <span className="coop__node coop__node--core" style={{ left: 36, top: 36, '--c': '#D7263D' } as CSSProperties} />
+      <span
+        className="coop__node coop__node--core"
+        style={{ left: '50%', top: '50%', '--c': '#D7263D' } as CSSProperties}
+      />
     </div>
   )
 }
