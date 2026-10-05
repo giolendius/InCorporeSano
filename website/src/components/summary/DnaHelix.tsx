@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import { SYSTEMS, SYSTEM_COLORS } from '../../data/systems'
 import { prefersReducedMotion } from '../../lib/gsap'
 
-const BOX_H = 250 // altezza del canvas (fascia y 70 → 320)
+/** Altezza di riferimento del disegno (mockup): tutte le misure sotto sono tarate su questa. */
+const BOX_H = 250
 const AMP = 52
 const WAVE = 150
 const RUNG_STEP = 17
@@ -18,20 +19,27 @@ const STRANDS = [
 ] as const
 const RUNG_COLORS = SYSTEMS.map((s) => SYSTEM_COLORS[s.id])
 
-const K = (Math.PI * 2) / WAVE
 const bandLength = (w: number) => (w >= 900 ? Math.min(w + 80, 1000) : 470)
 /** −14° come da spec; sulle fasce lunghe (desktop) l'inclinazione si riduce per restare nel box. */
-const tiltFor = (length: number) =>
-  Math.max(TILT, -Math.atan((BOX_H / 2 - AMP - 10) / (length / 2)))
+const tiltFor = (length: number, h: number) => Math.max(TILT, -Math.atan((h / 2 - (AMP * h) / BOX_H - 10) / (length / 2)))
 
-function draw(ctx: CanvasRenderingContext2D, w: number, dpr: number, phase: number, beat: number) {
+/**
+ * `h` è l'altezza reale della fascia: su schermi bassi è più corta di BOX_H, quindi tutto il
+ * disegno (ampiezza, lunghezza d'onda, passo dei pioli, spessori) viene scalato di `k`.
+ */
+function draw(ctx: CanvasRenderingContext2D, w: number, h: number, dpr: number, phase: number, beat: number) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-  ctx.clearRect(0, 0, w, BOX_H)
+  ctx.clearRect(0, 0, w, h)
   ctx.save()
+  const k = h / BOX_H
+  const amp = AMP * k
+  const wave = WAVE * k
+  const rungStep = RUNG_STEP * k
+  const K = (Math.PI * 2) / wave
   const length = bandLength(w)
   const half = length / 2
-  ctx.translate(w / 2 + SHIFT_X, BOX_H / 2)
-  ctx.rotate(tiltFor(length))
+  ctx.translate(w / 2 + SHIFT_X * k, h / 2)
+  ctx.rotate(tiltFor(length, h))
   ctx.lineCap = 'round'
 
   // Filamenti: prima i tratti "dietro" (z < 0), poi i pioli, poi i tratti "davanti".
@@ -43,10 +51,10 @@ function draw(ctx: CanvasRenderingContext2D, w: number, dpr: number, phase: numb
         const z = Math.cos(f)
         if ((z >= 0) !== front) continue
         ctx.globalAlpha = 0.45 + 0.55 * ((z + 1) / 2)
-        ctx.lineWidth = 4 + 3.5 * z
+        ctx.lineWidth = (4 + 3.5 * z) * k
         ctx.beginPath()
-        ctx.moveTo(x, AMP * Math.sin(f))
-        ctx.lineTo(x + SEG, AMP * Math.sin(K * (x + SEG) + phase + s.offset))
+        ctx.moveTo(x, amp * Math.sin(f))
+        ctx.lineTo(x + SEG, amp * Math.sin(K * (x + SEG) + phase + s.offset))
         ctx.stroke()
       }
     }
@@ -55,11 +63,11 @@ function draw(ctx: CanvasRenderingContext2D, w: number, dpr: number, phase: numb
   strandPass(false)
 
   // Pioli: coppia di basi, metà col colore del sistema i e metà con i+1.
-  ctx.lineWidth = 4
+  ctx.lineWidth = 4 * k
   let j = 0
-  for (let x = -half + RUNG_STEP / 2; x < half; x += RUNG_STEP, j++) {
+  for (let x = -half + rungStep / 2; x < half; x += rungStep, j++) {
     const f = K * x + phase
-    const yA = AMP * Math.sin(f)
+    const yA = amp * Math.sin(f)
     ctx.globalAlpha = Math.min(1, (0.25 + 0.75 * Math.abs(Math.sin(f))) * beat)
     ctx.strokeStyle = RUNG_COLORS[j % 4]
     ctx.beginPath()
@@ -93,14 +101,16 @@ export function DnaHelix() {
     const reduced = prefersReducedMotion()
 
     let w = 0
+    let h = BOX_H
     let dpr = 1
     let phase = STATIC_PHASE
     const resize = () => {
       dpr = Math.min(window.devicePixelRatio || 1, 2.5)
       w = canvas.clientWidth
+      h = canvas.clientHeight || BOX_H
       canvas.width = Math.round(w * dpr)
-      canvas.height = Math.round(BOX_H * dpr)
-      draw(ctx, w, dpr, phase, 1)
+      canvas.height = Math.round(h * dpr)
+      draw(ctx, w, h, dpr, phase, 1)
     }
     const ro = new ResizeObserver(resize)
     ro.observe(canvas)
@@ -127,7 +137,7 @@ export function DnaHelix() {
       // Durante l'hero il layer è trasparente: niente draw.
       if (layer && parseFloat(layer.style.opacity || '1') < 0.01) return
       const t = clock % BEAT
-      draw(ctx, w, dpr, phase, 1 + 0.15 * Math.exp(-t / 0.12))
+      draw(ctx, w, h, dpr, phase, 1 + 0.15 * Math.exp(-t / 0.12))
     }
 
     const io = new IntersectionObserver(([entry]) => {

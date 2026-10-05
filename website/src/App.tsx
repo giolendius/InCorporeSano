@@ -1,5 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
-import { CORSA_RIASSUNTO } from './config/navigation'
+import { useEffect, useRef } from 'react'
 import { ScrollTrigger } from './lib/gsap'
 import { LangProvider } from './i18n/LangContext'
 import { Dive } from './components/Dive'
@@ -9,11 +8,6 @@ import { LangSwitch } from './components/LangSwitch'
 
 export default function App() {
   const systems = useRef<SystemsHandle>(null)
-
-  // La corsa libera sullo screen 2 e' configurata in navigation.ts: la passo al CSS.
-  useLayoutEffect(() => {
-    document.documentElement.style.setProperty('--corsa-riassunto', `${CORSA_RIASSUNTO * 100}svh`)
-  }, [])
 
   // Font e immagini cambiano le altezze: ricalcola pin e trigger quando sono pronti.
   useEffect(() => {

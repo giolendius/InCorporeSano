@@ -23,6 +23,13 @@ import { SystemPanel } from './SystemPanel'
 import { SystemNav } from './SystemNav'
 
 const N = SYSTEMS.length
+/**
+ * Diapositive del carosello: -1 è la Slide 2 (il riassunto), 0…3 sono i sistemi.
+ * Ogni slide occupa esattamente uno schermo e un gesto ne vale una: non si resta mai a metà.
+ */
+const SUMMARY = -1
+/** Sotto questo sforamento (px) non vale la pena sdoppiare la Slide 2 in due posizioni. */
+const MIN_OVERFLOW = 24
 /** Oltre questa pausa gli eventi contano come un gesto nuovo e l'accumulo riparte da zero. */
 const GESTURE_GAP_MS = 400
 /** Margine di uscita, in px: stacca abbastanza da non essere ripresi subito dal magnetismo. */
@@ -44,10 +51,11 @@ const wheelPx = (e: WheelEvent) =>
   e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * window.innerHeight : e.deltaY
 
 /**
- * Screen 3–6: i 4 pannelli sovrapposti in una sezione alta un solo schermo.
- * Appena la sezione si affaccia, la pagina si allinea su di essa e blocca lo scroll (carosello):
- * da lì ogni gesto vale un sistema e lo schermo è sempre centrato su un sistema intero.
- * La resistenza dei gesti si regola in src/config/navigation.ts.
+ * Il carosello delle diapositive: Slide 2 (il riassunto, che vive nella stage del tuffo) e i 4
+ * pannelli dei sistemi, sovrapposti in una sezione alta un solo schermo.
+ *
+ * Quando una slide è in posizione lo scroll si blocca su di essa, e ogni gesto ne vale una sola:
+ * la vista è sempre su una slide intera. La resistenza si regola in src/config/navigation.ts.
  */
 export const SystemsSection = forwardRef<SystemsHandle>(function SystemsSection(_props, ref) {
   const section = useRef<HTMLElement>(null)
@@ -64,7 +72,8 @@ export const SystemsSection = forwardRef<SystemsHandle>(function SystemsSection(
   const shownRef = useRef(0) // indice effettivamente a video
   const modeRef = useRef<ChangeMode>('wipe')
 
-  const slot = useRef<number | null>(null) // pagina bloccata; null = scroll libero
+  const slot = useRef<number | null>(null) // slide bloccata; null = scroll libero
+  const sub = useRef(0) // posizione dentro la Slide 2: 0 = alto, 1 = fondo (solo se sborda)
   const locked = useRef(false) // lo scroll è nostro: i gesti muovono il carosello
   const busy = useRef(false) // spostamento tra pagine in corso
   const animating = useRef(false) // transizione tra due sistemi in corso
@@ -91,55 +100,84 @@ export const SystemsSection = forwardRef<SystemsHandle>(function SystemsSection(
     return top + window.innerHeight
   }
 
-  const setLockClasses = (scrollLocked: boolean, stageFixed: boolean) => {
+  const setLockClasses = (scrollLocked: boolean, page: number | null) => {
     const c = document.documentElement.classList
     c.toggle('is-locked', scrollLocked)
-    c.toggle('is-systems-locked', stageFixed)
+    c.toggle('is-systems-locked', page !== null && page >= 0)
+    // Slide 2 attiva: riabilito i click sul layer (i simboli dell'Asimmetria sono tappabili).
+    c.toggle('is-slide2', page === SUMMARY)
+  }
+
+  // ---------- Slide 2: quanto sborda e come si raggiunge il suo fondo ----------
+  /** Lo sforamento del contenuto della Slide 2 oltre il pannello, su finestre troppo basse. */
+  const summaryOverflow = () => {
+    const box = document.querySelector<HTMLElement>('.summary')
+    return box ? Math.max(0, box.scrollHeight - box.clientHeight) : 0
+  }
+  const summaryHasBottom = () => summaryOverflow() > MIN_OVERFLOW
+  /** Porta il contenuto della Slide 2 in alto (0) o al suo fondo (1), traslandolo. */
+  const setSub = (next: 0 | 1, instant = false) => {
+    const over = summaryOverflow()
+    const target = over > MIN_OVERFLOW ? next : 0
+    sub.current = target
+    const inner = document.querySelector<HTMLElement>('.summary__inner')
+    if (!inner) return
+    gsap.to(inner, {
+      y: target ? -over : 0,
+      duration: instant || prefersReducedMotion() ? 0 : DURATA_ALLINEAMENTO,
+      ease: 'power2.inOut',
+      overwrite: true,
+    })
   }
 
   /**
-   * Porta il sistema indicato a schermo pieno e blocca lo scroll su di esso.
+   * Porta la slide indicata a schermo pieno e blocca lo scroll su di essa.
    * Durante il movimento i gesti sono assorbiti (busy): la rotella non deve fare
    * tiro alla corda con l'animazione, altrimenti si vedono gli scatti.
+   *
+   * `atBottom` vale solo per la Slide 2: risalendo dal circolatorio si rientra dal suo fondo,
+   * cioè dove si era rimasti.
    */
-  const alignTo = (index: number, instant = false) => {
+  const alignTo = (page: number, opts: { instant?: boolean; atBottom?: boolean } = {}) => {
     if (busy.current) return
     busy.current = true
     acc.current = 0
     locked.current = false
     // La stage torna in flusso: se restasse fissa, lo scorrimento non si vedrebbe.
-    setLockClasses(true, false)
-    const replay = index === activeRef.current // nessun wipe da fare: rianimo il pannello
-    change(index)
-    const quick = instant || prefersReducedMotion()
+    setLockClasses(true, null)
+    const isSystem = page >= 0
+    const replay = isSystem && page === activeRef.current // nessun wipe: rianimo il pannello
+    if (isSystem) change(page)
+    const quick = opts.instant || prefersReducedMotion()
+    if (!isSystem) setSub(opts.atBottom ? 1 : 0, quick)
     gsap.to(window, {
-      scrollTo: { y: sectionTop(), autoKill: false },
+      scrollTo: { y: isSystem ? sectionTop() : summaryAnchor(), autoKill: false },
       duration: quick ? 0 : DURATA_ALLINEAMENTO,
       ease: 'power2.inOut',
       overwrite: 'auto',
       onComplete: () => {
         busy.current = false
-        slot.current = index
+        slot.current = page
         locked.current = true
-        setLockClasses(true, true)
-        const panel = panels.current[index]
-        if (replay && panel && !quick) contentIntro(gsap.timeline(), panel, null, index, 0)
+        setLockClasses(true, page)
+        const panel = isSystem ? panels.current[page] : null
+        if (replay && panel && !quick) contentIntro(gsap.timeline(), panel, null, page, 0)
       },
     })
   }
 
   /**
-   * Esce dai sistemi e restituisce lo scroll libero: in alto si riemerge sullo screen 2
-   * ben inquadrato (la fine del tuffo), in basso sulla CTA.
+   * Esce dal carosello e restituisce lo scroll libero: in alto si riavvolge il tuffo a mano,
+   * in basso si arriva sulla CTA.
    */
   const release = (dir: -1 | 1) => {
     if (busy.current) return
     busy.current = true
     locked.current = false
     slot.current = null
-    setLockClasses(false, false)
+    setLockClasses(false, null)
     acc.current = 0
-    const target = dir < 0 ? summaryAnchor() : sectionTop() + sectionHeight() + EXIT_MARGIN
+    const target = dir < 0 ? summaryAnchor() - EXIT_MARGIN : sectionTop() + sectionHeight() + EXIT_MARGIN
     const quick = prefersReducedMotion()
     gsap.to(window, {
       scrollTo: { y: Math.max(0, target), autoKill: false },
@@ -153,17 +191,43 @@ export const SystemsSection = forwardRef<SystemsHandle>(function SystemsSection(
 
   const settleDelay = () => (prefersReducedMotion() ? 0.25 : DURATA_CAMBIO + PAUSA_DOPO_CAMBIO)
 
-  /** Un passo del carosello; oltre il primo o l'ultimo sistema si esce. */
+  /** Un passo del carosello: una slide per gesto, in entrambi i versi. */
   const step = (dir: 1 | -1) => {
     if (busy.current || animating.current) return
     const cur = slot.current
     if (cur === null) return
-    const next = cur + dir
-    if (next < 0 || next > N - 1) {
-      release(dir)
+
+    // Slide 2: se il contenuto sborda ha due posizioni, alto e fondo.
+    if (cur === SUMMARY) {
+      if (dir > 0) {
+        if (sub.current === 0 && summaryHasBottom()) {
+          animating.current = true
+          setSub(1)
+          gsap.delayedCall(settleDelay(), () => (animating.current = false))
+          return
+        }
+        alignTo(0)
+      } else if (sub.current === 1) {
+        animating.current = true
+        setSub(0)
+        gsap.delayedCall(settleDelay(), () => (animating.current = false))
+      } else {
+        release(-1)
+      }
       return
     }
-    // Lo scroll non si muove: cambia solo il pannello (wipe).
+
+    const next = cur + dir
+    if (next > N - 1) {
+      release(1)
+      return
+    }
+    // Dal circolatorio verso l'alto si torna sulla Slide 2, dal suo fondo.
+    if (next < 0) {
+      alignTo(SUMMARY, { atBottom: true })
+      return
+    }
+    // Tra due sistemi lo scroll non si muove: cambia solo il pannello (wipe).
     animating.current = true
     slot.current = next
     change(next)
@@ -175,7 +239,7 @@ export const SystemsSection = forwardRef<SystemsHandle>(function SystemsSection(
     if (animating.current || busy.current) return
     const i = Math.max(0, Math.min(N - 1, index))
     if (slot.current === i) return
-    if (slot.current === null) {
+    if (slot.current === null || slot.current === SUMMARY) {
       alignTo(i)
       return
     }
@@ -185,7 +249,7 @@ export const SystemsSection = forwardRef<SystemsHandle>(function SystemsSection(
     gsap.delayedCall(settleDelay(), () => (animating.current = false))
   }
 
-  // ---------- Magnetismo: appena la sezione si affaccia, allinea e blocca ----------
+  // ---------- Magnetismo: quando una slide è in posizione, la pagina si ferma lì ----------
   useGSAP(
     () => {
       ScrollTrigger.create({
@@ -197,11 +261,15 @@ export const SystemsSection = forwardRef<SystemsHandle>(function SystemsSection(
           if (!el) return
           const vh = window.innerHeight
           const r = el.getBoundingClientRect()
+          // Scendendo dal tuffo si atterra sulla Slide 2: ha la precedenza, altrimenti un
+          // colpo di rotella ampio la scavalcherebbe andando diritto sul circolatorio.
+          if (r.top > 0) {
+            if (window.scrollY >= summaryAnchor() - 1) alignTo(SUMMARY)
+            return
+          }
+          // I sistemi coprono lo schermo dall'alto: risalita dalla CTA o pagina ricaricata qui.
           const covered = Math.min(r.bottom, vh) - Math.max(r.top, 0)
-          if (covered <= vh * SCROLL_PER_ENTRARE) return
-          // Il magnetismo tira sempre nel senso di marcia: scendendo porta al primo sistema,
-          // risalendo dalla CTA all'ultimo. Mai indietro, cosi' non ci sono rimbalzi.
-          alignTo(r.top > 0 ? 0 : self.direction < 0 ? N - 1 : activeRef.current)
+          if (covered > vh * SCROLL_PER_ENTRARE) alignTo(self.direction < 0 ? N - 1 : activeRef.current)
         },
       })
     },
@@ -269,11 +337,14 @@ export const SystemsSection = forwardRef<SystemsHandle>(function SystemsSection(
     /** Rete di sicurezza: se lo scroll scappa da fonti che non intercettiamo, riallinea. */
     const onScroll = () => {
       if (!locked.current || busy.current || slot.current === null) return
-      const target = sectionTop()
+      const target = slot.current >= 0 ? sectionTop() : summaryAnchor()
       if (Math.abs(window.scrollY - target) > 2) window.scrollTo(0, target)
     }
     const onRefresh = () => {
-      if (locked.current && slot.current !== null) window.scrollTo(0, sectionTop())
+      if (!locked.current || slot.current === null) return
+      window.scrollTo(0, slot.current >= 0 ? sectionTop() : summaryAnchor())
+      // Cambiando dimensioni lo sforamento della Slide 2 cambia: ricalcolo la traslazione.
+      if (slot.current === SUMMARY) setSub(sub.current as 0 | 1, true)
     }
 
     window.addEventListener('wheel', onWheel, { passive: false })
@@ -294,7 +365,7 @@ export const SystemsSection = forwardRef<SystemsHandle>(function SystemsSection(
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('scroll', onScroll)
       ScrollTrigger.removeEventListener('refresh', onRefresh)
-      setLockClasses(false, false)
+      setLockClasses(false, null)
     }
   }, [])
 
@@ -378,7 +449,7 @@ export const SystemsSection = forwardRef<SystemsHandle>(function SystemsSection(
         window.scrollTo(0, sectionTop())
         slot.current = index
         locked.current = true
-        setLockClasses(true, true)
+        setLockClasses(true, index)
         ScrollTrigger.update()
       }
       const doc = document as unknown as ViewTransitionDoc

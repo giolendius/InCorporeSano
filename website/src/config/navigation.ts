@@ -38,16 +38,6 @@ export const SWIPE_PER_CAMBIARE_SISTEMA = 0.14
  */
 export const SCROLL_PER_ENTRARE = 0.02
 
-/**
- * ⭐ CORSA SUL RIASSUNTO — quanto si può scorrere liberamente sullo screen 2
- * prima che la pagina porti al circolatorio.
- *
- * In frazioni di schermo: 0.25 = un quarto di schermo (~220px), due giri di rotella.
- * Se su qualche schermo il contenuto del riassunto sborda, lo spazio per leggerlo
- * tutto viene aggiunto a questo valore, non sottratto.
- */
-export const CORSA_RIASSUNTO = 0.25
-
 /** Durata della transizione tra due sistemi, in secondi. Mentre scorre, i gesti sono ignorati. */
 export const DURATA_CAMBIO = 0.6
 

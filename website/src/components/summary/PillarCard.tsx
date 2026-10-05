@@ -12,8 +12,8 @@ export function PillarCard({ badge, title, text }: Props) {
     <article className="pillar reveal-card">
       {badge}
       <div className="min-w-0">
-        <h3 className="font-cinzel text-[20px] font-bold leading-tight text-osso">{title}</h3>
-        <p className="mt-1 text-[15px] leading-[1.4] text-[#DCCFC2]">{text}</p>
+        <h3 className="pillar__title font-cinzel font-bold leading-tight text-osso">{title}</h3>
+        <p className="pillar__text leading-[1.4] text-[#DCCFC2]">{text}</p>
       </div>
     </article>
   )

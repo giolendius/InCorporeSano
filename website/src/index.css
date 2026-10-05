@@ -264,17 +264,28 @@
 /* ============================================================
    Screen 2 – Riassunto (elica, pilastri, dilemma)
    ============================================================ */
+/* La Slide 2 e' un pannello a schermo pieno, gemello di .sys-panel: elica in alto e
+   blocco di testo sotto, tutto dimensionato in svh perche' entri su ogni altezza.
+   I valori massimi sono quelli del mockup a 844px: a quell'altezza il rendering e' identico. */
+.screen2-layer {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* .layer blocca i click per non coprire la CTA della hero: li riattivo solo a slide attiva. */
+html.is-slide2 .screen2-layer {
+  pointer-events: auto;
+}
 .screen2-bg {
   position: absolute;
   inset: 0;
   background: radial-gradient(ellipse at 50% 22%, #4a0f18 0, var(--plasma) 62%);
 }
 .dna {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 70px;
-  height: 250px;
+  position: relative;
+  flex: none;
+  margin-top: clamp(34px, 8.3svh, 70px);
+  height: clamp(150px, 29.6svh, 250px);
 }
 .dna__canvas {
   display: block;
@@ -292,32 +303,55 @@
 .summary {
   position: relative;
   z-index: 10;
-  /* A fine pin il kicker cade a ~318px dall'alto, sotto l'elica. */
-  margin-top: calc(318px - 100svh);
-  /* Corsa libera prima che arrivino i sistemi (--corsa-riassunto, vedi config/navigation.ts).
-     Due regole complementari, 318px = quota del kicker:
-     - la coda in basso da' respiro quando il contenuto sborda dallo schermo;
-     - la min-height serve sugli schermi alti, dove il contenuto entra tutto. */
-  min-height: calc(100svh - 318px + var(--corsa-riassunto, 25svh));
-  padding: 0 28px max(96px, var(--corsa-riassunto, 25svh)) 24px;
-  background: linear-gradient(transparent, transparent 70%, #2a0709);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 28px clamp(14px, 2.5svh, 24px) 24px;
+}
+/* Blocco traslabile: sulle finestne troppo basse il carosello lo porta al fondo della slide. */
+.summary__inner {
+  max-width: 460px;
+  margin: 0 auto;
+  will-change: transform;
+}
+.summary__kicker {
+  font-size: clamp(12px, 1.8svh, 15px);
+}
+.summary__headline {
+  margin-top: clamp(4px, 0.95svh, 8px);
+  font-size: clamp(23px, 3.8svh, 32px);
+  line-height: 1.08;
+}
+.summary__pillars {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1.42svh, 12px);
+  margin-top: clamp(12px, 2.85svh, 24px);
 }
 
 .pillar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px 16px 16px 18px;
+  gap: clamp(9px, 1.66svh, 14px);
+  padding: clamp(10px, 1.9svh, 16px);
+  padding-left: clamp(11px, 2.13svh, 18px);
   border-radius: 22px;
   background: #ffffff0a;
   border: 1px solid #ffffff1f;
 }
+.pillar__title {
+  font-size: clamp(16px, 2.4svh, 20px);
+}
+.pillar__text {
+  margin-top: clamp(2px, 0.47svh, 4px);
+  font-size: clamp(12.5px, 1.8svh, 15px);
+}
 .badge {
   position: relative;
   flex: none;
-  width: 72px;
-  height: 72px;
-  border-radius: 18px;
+  width: clamp(52px, 8.5svh, 72px);
+  height: clamp(52px, 8.5svh, 72px);
+  border-radius: clamp(13px, 2.1svh, 18px);
   background: #00000055;
   border: 1px solid #ffffff18;
 }
@@ -351,9 +385,9 @@
 }
 .coop__node {
   position: absolute;
-  width: 13px;
-  height: 13px;
-  margin: -6.5px 0 0 -6.5px;
+  width: clamp(9px, 1.54svh, 13px);
+  height: clamp(9px, 1.54svh, 13px);
+  margin: calc(clamp(9px, 1.54svh, 13px) / -2) 0 0 calc(clamp(9px, 1.54svh, 13px) / -2);
   border-radius: 50%;
   background: var(--c);
   box-shadow: 0 0 6px var(--c);
@@ -368,9 +402,9 @@
   animation: node-flash 2.4s linear var(--flash-delay, 0s) infinite;
 }
 .coop__node--core {
-  width: 14px;
-  height: 14px;
-  margin: -7px 0 0 -7px;
+  width: clamp(10px, 1.66svh, 14px);
+  height: clamp(10px, 1.66svh, 14px);
+  margin: calc(clamp(10px, 1.66svh, 14px) / -2) 0 0 calc(clamp(10px, 1.66svh, 14px) / -2);
   animation: sym-beat var(--beat) ease-in-out infinite;
 }
 .coop__node--core::after {
@@ -381,9 +415,9 @@
 /* Asimmetria */
 .asym {
   display: grid;
-  grid-template-columns: repeat(2, 28px);
-  grid-template-rows: repeat(2, 28px);
-  gap: 4px;
+  grid-template-columns: repeat(2, clamp(20px, 3.3svh, 28px));
+  grid-template-rows: repeat(2, clamp(20px, 3.3svh, 28px));
+  gap: clamp(3px, 0.47svh, 4px);
   place-content: center;
 }
 .asym__btn {
@@ -402,9 +436,15 @@
 }
 .asym__sym {
   display: block;
+  width: clamp(16px, 2.6svh, 22px);
+  height: clamp(16px, 2.6svh, 22px);
   line-height: 0;
   filter: drop-shadow(0 0 4px var(--sys-light));
   transition: transform 0.2s;
+}
+.asym__sym svg {
+  width: 100%;
+  height: 100%;
 }
 .asym__btn:active .asym__sym {
   transform: scale(0.9);
@@ -425,11 +465,11 @@
 /* Frase-dilemma */
 .dilemma {
   position: relative;
-  margin-top: 28px;
-  padding-left: 18px;
+  margin-top: clamp(14px, 3.3svh, 28px);
+  padding-left: clamp(12px, 2.1svh, 18px);
   font-family: 'Cinzel', Georgia, serif;
   font-weight: 700;
-  font-size: 21px;
+  font-size: clamp(16px, 2.5svh, 21px);
   line-height: 1.3;
   color: var(--osso);
 }
