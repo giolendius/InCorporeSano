@@ -59,12 +59,18 @@
     background: var(--plasma);
     color: var(--osso);
     -webkit-tap-highlight-color: transparent;
+    /* Scrollbar nativa nascosta: la navigazione è a pagine, un indicatore non serve.
+       La pagina resta scorribile da rotella, dito e tastiera. */
+    scrollbar-width: none;
+  }
+  html::-webkit-scrollbar {
+    display: none;
   }
   body {
     font-family: 'Nunito', system-ui, sans-serif;
     font-size: 16px;
     line-height: 1.45;
-    overflow-x: hidden;
+    overflow-x: clip;
     -webkit-font-smoothing: antialiased;
   }
   ::selection {
@@ -288,7 +294,12 @@
   z-index: 10;
   /* A fine pin il kicker cade a ~318px dall'alto, sotto l'elica. */
   margin-top: calc(318px - 100svh);
-  padding: 0 28px 96px 24px;
+  /* Corsa libera prima che arrivino i sistemi (--corsa-riassunto, vedi config/navigation.ts).
+     Due regole complementari, 318px = quota del kicker:
+     - la coda in basso da' respiro quando il contenuto sborda dallo schermo;
+     - la min-height serve sugli schermi alti, dove il contenuto entra tutto. */
+  min-height: calc(100svh - 318px + var(--corsa-riassunto, 25svh));
+  padding: 0 28px max(96px, var(--corsa-riassunto, 25svh)) 24px;
   background: linear-gradient(transparent, transparent 70%, #2a0709);
 }
 
@@ -496,43 +507,31 @@
   height: 100%;
 }
 
-.progress {
-  position: fixed;
-  right: 8px;
-  top: 16svh;
-  height: 68svh;
-  width: 5px;
-  border-radius: 5px;
-  background: rgba(237, 226, 207, 0.08);
-  z-index: 50;
-  opacity: 0;
-  transition: opacity 0.4s;
-  pointer-events: none;
-}
-.progress.is-visible {
-  opacity: 1;
-}
-.progress__fill {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(var(--brace), var(--arteria));
-  box-shadow: 0 0 10px rgba(255, 122, 61, 0.65);
-  transform-origin: top;
-  transform: scaleY(0);
-}
-
 /* ============================================================
    Screen 3–6 – Sistemi
    ============================================================ */
+/* Altezza esplicita: quando la stage passa a fixed, la sezione non deve collassare. */
+.systems-section {
+  height: 100svh;
+}
 .systems-stage {
   position: relative;
   height: 100svh;
   overflow: hidden;
   background: var(--plasma);
-  touch-action: pan-y;
 }
-
+/* Carosello attivo: lo scroll è bloccato, quindi la stage può coprire il viewport reale
+   (100svh può essere più corta di innerHeight quando le barre del telefono si ritirano). */
+html.is-locked {
+  overscroll-behavior: none;
+}
+html.is-systems-locked .systems-stage {
+  position: fixed;
+  inset: 0;
+  height: auto;
+  /* Il trascinamento verticale lo gestiamo noi; lo zoom a due dita resta al browser. */
+  touch-action: pinch-zoom;
+}
 /* Visibilità e z-index sono gestiti da SystemsSection (inline). */
 .sys-panel {
   position: absolute;
@@ -664,16 +663,6 @@
   stroke-width: 1;
   stroke-dasharray: 3 6;
 }
-.orbit-spark {
-  fill: none;
-  stroke: #fff;
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-dasharray: 3 97;
-  filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 10px #fff);
-  animation: spark-run 2.5s linear infinite;
-}
-
 .portal-pop {
   position: absolute;
   inset: 14.25%;
@@ -902,6 +891,9 @@
   inset: 0;
   background: radial-gradient(ellipse at 50% 30%, rgba(215, 38, 61, 0.28), transparent 60%);
   pointer-events: none;
+}
+.final-cta {
+  min-height: 100dvh;
 }
 .final-cta__inner {
   padding-top: max(28px, 5svh);
@@ -1174,11 +1166,6 @@
     opacity: 0;
   }
 }
-@keyframes spark-run {
-  to {
-    stroke-dashoffset: -100;
-  }
-}
 /* Flicker irregolare del glow del Nervoso. */
 @keyframes flicker {
   0%,
@@ -1242,7 +1229,6 @@
     stroke-dashoffset: 0;
   }
   .shockwave,
-  .orbit-spark,
   .spark {
     display: none;
   }

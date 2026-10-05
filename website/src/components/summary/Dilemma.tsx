@@ -21,13 +21,22 @@ export function Dilemma() {
         const highlights = q('.dilemma__hl')
         const tl = gsap.timeline({
           defaults: { ease: 'none' },
-          // Creato prima del pin di Dive (effetto del figlio): ricalcolato dopo, così conta lo spazio del pin.
-          // Si accende appena entra dal basso ed è completa a metà schermo, prima che si passi ai sistemi.
-          scrollTrigger: { trigger: root.current, start: 'top 98%', end: 'top 62%', scrub: 0.3, refreshPriority: -1 },
+          /* Agganciata allo stesso scroll del tuffo (.dive-stage): così la frase è accesa
+             esattamente quando lo screen 2 è composto, su qualunque altezza di schermo.
+             Legarla alla propria posizione non basta: dopo lo screen 2 scatta il magnetismo
+             dei sistemi e non resterebbe scroll per finire di accenderla. */
+          scrollTrigger: {
+            trigger: '.dive-stage',
+            start: 'top top',
+            end: () => `+=${window.innerHeight}`,
+            scrub: 0.3,
+            refreshPriority: -1,
+          },
         })
-        tl.fromTo(q('.dilemma__line'), { scaleY: 0 }, { scaleY: 1, duration: 1 }, 0)
-          .fromTo(plain, { opacity: 0.2 }, { opacity: 1, duration: 0.1, stagger: 0.06 }, 0)
-          .fromTo(q('.dw--hl'), { opacity: 0.2 }, { opacity: 1, duration: 0.08, stagger: 0.03 }, 0.72)
+        // Ultimo 18% del tuffo: la frase si accende riga dopo riga mentre lo screen 2 si compone.
+        tl.fromTo(q('.dilemma__line'), { scaleY: 0 }, { scaleY: 1, duration: 0.17 }, 0.82)
+          .fromTo(plain, { opacity: 0.2 }, { opacity: 1, duration: 0.02, stagger: 0.011 }, 0.82)
+          .fromTo(q('.dw--hl'), { opacity: 0.2 }, { opacity: 1, duration: 0.015, stagger: 0.005 }, 0.945)
           .call(
             () => {
               highlights.forEach((el) => {
@@ -37,7 +46,7 @@ export function Dilemma() {
               })
             },
             undefined,
-            0.95,
+            0.995,
           )
       })
       return () => mm.revert()

@@ -18,16 +18,6 @@ export const Portal = forwardRef<HTMLDivElement, { system: SystemDef }>(function
 
       <svg className="orbit-ring" viewBox="0 0 330 330" aria-hidden="true">
         <circle className="orbit-ring__path" cx="165" cy="165" r="164.5" />
-        {id === 'ner' && (
-          <circle
-            className="orbit-spark"
-            cx="165"
-            cy="165"
-            r="164.5"
-            pathLength={100}
-            transform="rotate(-90 165 165)"
-          />
-        )}
       </svg>
 
       {id === 'imm' && <div className="shockwave" aria-hidden="true" />}
